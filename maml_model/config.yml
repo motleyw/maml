@@ -1,0 +1,64 @@
+args:
+  episode: 64
+  epoch: 1601
+  k_qry: 30
+  k_spt: 20
+  loco_mode_num: 5
+  max_samples: 6000
+  meta_lr: 5.0e-05
+  n_way: 4
+  savepath: ./results/loc_gait_incline_0209_t04
+  testid: Sub01_data
+  update_lr: 5.0e-05
+  update_step: 4
+  update_step_test: 4
+  weight_decay: 1.0e-05
+  window_length: 100
+model_config:
+  config:
+  - !!python/tuple
+    - conv1d
+    - - 32
+      - 4
+      - 30
+      - 1
+      - 0
+      - 1
+  - !!python/tuple
+    - bn
+    - - 32
+  - !!python/tuple
+    - relu
+    - - true
+  - !!python/tuple
+    - flatten
+    - []
+  - !!python/tuple
+    - linear
+    - - 48
+      - 2272
+  - !!python/tuple
+    - relu
+    - - true
+  gait_head_config:
+  - !!python/tuple
+    - linear
+    - - 4
+      - 49
+  incline_head_config:
+  - !!python/tuple
+    - linear
+    - - 1
+      - 49
+  loc_head_config:
+  - !!python/tuple
+    - linear
+    - - 48
+      - 48
+  - !!python/tuple
+    - relu
+    - - true
+  - !!python/tuple
+    - linear
+    - - 5
+      - 48
