@@ -4,25 +4,34 @@ import time
 from Class_Arduino import Arduino
 
 
-def read_arduino_data(output_file='sensor_data.csv'):
+def read_arduino_data(data_queue, stop_event, window_size=100):
     try:
         arduino = Arduino()  # Instantiate the Arduino class
         time.sleep(2)  # Allow time for Arduino to reset
-        
-        with open(output_file, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Left Sensor Time", "Left Hip", "Left Knee", "Right Sensor Time", "Right Hip", "Right Knee"])  # Header row
-            
-            print("Reading sensor data. Press Ctrl+C to stop.")
-            while True:
-                try:
-                    arduino.obtain_softsensor_data()
-                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-                    print(f"{arduino.left_sensor_data[0]}: {arduino.left_sensor_data}, {arduino.right_sensor_data}")
-                    writer.writerow(arduino.left_sensor_data + arduino.right_sensor_data)
-                except KeyboardInterrupt:
-                    print("Data logging stopped.")
-                    break
+
+        print("Reading sensor data. Press Ctrl+C to stop.")
+        i = 0
+        sliding_window = []
+        while not(stop_event.is_set()):
+            try:
+                arduino.obtain_softsensor_data()
+                timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+                data_vector = [arduino.left_sensor_data[1], arduino.left_sensor_data[2], arduino.right_sensor_data[1], arduino.right_sensor_data[2]]
+                #print(data_vector)
+                if i < window_size:  # Logic to construct 100 len sliding window and add to queue
+                    sliding_window.append(data_vector)
+                    i += 1
+                else:
+                    if not data_queue.full():
+                        data_queue.put(sliding_window)  # Add data to queue
+                        #print("Put data")
+                    else:
+                        print("Queue full, skipping data.")
+                    i = 1
+                    sliding_window = [data_vector]
+            except KeyboardInterrupt:
+                print("Data logging stopped.")
+                break
     except serial.SerialException as e:
         print(f"Error: {e}")
 
