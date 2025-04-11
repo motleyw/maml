@@ -84,7 +84,7 @@ def get_loss(gait_output,incline_output,loco_output,y_gait_gt,y_incline_gt,y_loc
     gait_classification_loss = F.cross_entropy(gait_output, y_gait_gt.long())
     loco_classification_loss = F.cross_entropy(loco_output, y_loco_gt.long())
     #print(incline_output.shape)
-    incline_loss = F.mse_loss(incline_output.squeeze(), y_incline_gt)
+    incline_loss = F.mse_loss(incline_output.squeeze(dim=0), y_incline_gt) # added dim=0
     combined_loss = (weight_g_classification * gait_classification_loss +
                     weight_loco_classification * loco_classification_loss +
                     weight_incline * incline_loss)

@@ -40,7 +40,7 @@ def generate_queue(size=100):
     return data_queue
 
 def sensor_reader_csv(csv_path, stop_event, window_size=100):
-    """ Reads sensor data from CSV in non-overlapping windows and stores only the latest window. """
+    """ Reads sensor data from CSV in overlapping windows and stores only the latest window. """
     global latest_window  # Declare the global variable
     df = pd.read_csv(csv_path, skiprows=1, header=None, usecols=[1, 2, 4, 5])  # Skip header row
     num_rows = len(df)
@@ -56,7 +56,7 @@ def sensor_reader_csv(csv_path, stop_event, window_size=100):
 
         # Update the latest window with the current 100-row chunk
         latest_window = df.iloc[i-window_size:i].to_numpy(dtype=float)
-
+        add_labeled_window(0, incline_label, loco_label, device)
         time.sleep(0.01)  # Simulate real-time streaming
 
 def start_sensory_reader():
@@ -90,6 +90,7 @@ def evaluate_model(model, device, stop_event):
                 print(f"Gait: {gait_pred_class}, Loco: {loco_pred_class}, Incline: {incline_pred_value}")
             else:
                 time.sleep(0.5)
+            time.sleep(0.01)
 
 def start_model_eval(maml_model, device):
     stop_event = threading.Event()
@@ -109,13 +110,10 @@ def add_labeled_window(gait_label, incline_label, loco_label, device):
     global latest_window, live_spt_batches
 
     if latest_window is not None:
-        # Reshape window into correct format
         input_tensor = torch.tensor(latest_window, dtype=torch.float32).to(device).unsqueeze(0).transpose(1, 2)
         gait_tensor = torch.tensor([gait_label], dtype=torch.long).to(device)
         incline_tensor = torch.tensor([incline_label], dtype=torch.float32).to(device)
         loco_tensor = torch.tensor([loco_label], dtype=torch.long).to(device)
-
-        # Save to support batch list
         live_spt_batches.append((input_tensor, gait_tensor, incline_tensor, loco_tensor))
 
 def fine_tune_on_live_data(model, device, optimizer, train_args, updates=1):
@@ -135,8 +133,8 @@ def fine_tune_on_live_data(model, device, optimizer, train_args, updates=1):
         print(f"[Update {update + 1}] Live fine-tune loss: {loss_total:.4f}")
 
 def get_labels():
-    incline_label = input("Input True Incline: ")
-    loco_label = input("Input True Locomotion Mode: ")
+    incline_label = float(input("Input True Incline: "))
+    loco_label = int(input("Input True Locomotion Mode: "))
     return incline_label, loco_label
 
 
@@ -155,7 +153,7 @@ if __name__ == "__main__":
     )
     try:
         while True:
-            if len(live_spt_batches) >= 5:
+            if len(live_spt_batches) >= 50:
                 fine_tune_on_live_data(maml_model, device, optimizer, train_args, updates=1)
                 live_spt_batches.clear()
 
