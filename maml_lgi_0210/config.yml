@@ -6,6 +6,7 @@ args:
   loco_mode_num: 5
   max_samples: 6000
   meta_lr: 5.0e-05
+  transfer_lr: 0.001
   n_way: 4
   savepath: ./results/loc_gait_incline_0209_t04
   testid: Sub03
