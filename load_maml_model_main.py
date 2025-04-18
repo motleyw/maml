@@ -22,7 +22,7 @@ loco_label = 0
 def load_model():
     # Define folder paths
     folderpath = "maml_lgi_0210"  # Where config.yml and model are stored
-    test_id = "Sub03"  # ID of the subject testing
+    test_id = "Sub01"  # ID of the subject testing
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # Set device
 
     # Load the MAML model
@@ -42,7 +42,7 @@ def generate_queue(size=100):
 def sensor_reader_csv(csv_path, stop_event, window_size=100):
     """ Reads sensor data from CSV in overlapping windows and stores only the latest window. """
     global latest_window  # Declare the global variable
-    df = pd.read_csv(csv_path, skiprows=1, header=None, usecols=[1, 2, 4, 5])  # Skip header row
+    df = pd.read_csv(csv_path, skiprows=1, header=None, usecols=[17, 18, 19, 20])  # Skip header row
     num_rows = len(df)
 
     for i in range(window_size, num_rows):  # Read in chunks of 100 rows
@@ -52,18 +52,26 @@ def sensor_reader_csv(csv_path, stop_event, window_size=100):
 
         if i + window_size > num_rows:  # Stop if there aren't enough rows
             print("Not enough data for a full window, stopping.")
-            break
+            return stop_event
 
         # Update the latest window with the current 100-row chunk
         latest_window = df.iloc[i-window_size:i].to_numpy(dtype=float)
         add_labeled_window(0, incline_label, loco_label, device)
         time.sleep(0.01)  # Simulate real-time streaming
 
+def sensor_reader_wrapper(csv_path_list, stop_event, window_size=100):
+    for i in range(len(csv_path_list)):
+        stop_event = sensor_reader_csv(csv_path_list[i], stop_event, window_size=window_size)
+        print("Next csv")
+    return
+
 def start_sensory_reader():
     # Start the sensor reading thread
-    csv_path = "./sensor_data.csv"
+    csv_path_list = ["C:/Users/wojom/OneDrive - purdue.edu/Zhu, Zenan's files - meta_learn_data_label/Sub01_data/label_data/0117_Sub01_SA_i33_01.csv",
+                     "C:/Users/wojom/OneDrive - purdue.edu/Zhu, Zenan's files - meta_learn_data_label/Sub01_data/label_data/0117_Sub01_SA_i33_01.csv",
+                     "C:/Users/wojom/OneDrive - purdue.edu/Zhu, Zenan's files - meta_learn_data_label/Sub01_data/label_data/0117_Sub01_SA_i33_01.csv"]
     stop_event = threading.Event()
-    sensor_thread = threading.Thread(target=sensor_reader_csv, args=(csv_path, stop_event, 100), daemon=True)
+    sensor_thread = threading.Thread(target=sensor_reader_wrapper, args=(csv_path_list, stop_event, 100), daemon=True)
     sensor_thread.start()
     return stop_event
 """
@@ -74,6 +82,7 @@ def start_sensory_reader(data_queue):
 """
 def evaluate_model(model, device, stop_event):
     global latest_window
+    count = 0
     model.eval()
     with torch.no_grad():
         while not stop_event.is_set():
@@ -86,11 +95,11 @@ def evaluate_model(model, device, stop_event):
                 gait_pred_class = gait_pred.argmax(dim=1).cpu().numpy()
                 loco_pred_class = loco_pred.argmax(dim=1).cpu().numpy()
                 incline_pred_value = incline_pred.squeeze().cpu().numpy()
-
                 print(f"Gait: {gait_pred_class}, Loco: {loco_pred_class}, Incline: {incline_pred_value}")
             else:
                 time.sleep(0.5)
             time.sleep(0.01)
+            count += 1
 
 def start_model_eval(maml_model, device):
     stop_event = threading.Event()
@@ -131,6 +140,7 @@ def fine_tune_on_live_data(model, device, optimizer, train_args, updates=1):
             loss_total += loss.item()
 
         print(f"[Update {update + 1}] Live fine-tune loss: {loss_total:.4f}")
+        torch.save(model.state_dict(), "maml_testid_Sub01_trainidnum_8_0210.pt")
 
 def get_labels():
     incline_label = float(input("Input True Incline: "))
